@@ -398,6 +398,87 @@ msgstr  ""
 	c.Assert(string(got), Equals, expected)
 }
 
+func (s *xgettextTestSuite) TestIntegrationMultipleKeywords(c *C) {
+	fname := makeGoSourceFile(c, []byte(`package main
+
+func main() {
+    // TRANSLATORS: foo comment
+    //              with multiple lines
+    i18n.G("foo")
+    i18n.Translate("goo foo")
+
+    // this comment has no translators tag
+    i18n.G("abc")
+    i18n.Translate("goo abc")
+
+    // TRANSLATORS: plural
+    i18n.NG("singular", "plural", 99)
+    i18n.TranslatePlural("one", "many", 3)
+
+    i18n.G("zz %s")
+    i18n.Translate("yy %s")
+}
+`))
+
+	outName := filepath.Join(c.MkDir(), "snappy.pot")
+	os.Args = []string{"test-binary",
+		"--output", outName,
+		"--keyword", "i18n.G,i18n.Translate",
+		"--keyword-plural", "i18n.NG,i18n.TranslatePlural",
+		"--msgid-bugs-address", "snappy-devel@lists.ubuntu.com",
+		"--package-name", "snappy",
+		fname,
+	}
+	main()
+
+	got, err := ioutil.ReadFile(outName)
+	c.Assert(err, IsNil)
+	expected := fmt.Sprintf(`%s
+#: %[2]s:10
+msgid   "abc"
+msgstr  ""
+
+#. TRANSLATORS: foo comment
+#. with multiple lines
+#: %[2]s:6
+msgid   "foo"
+msgstr  ""
+
+#: %[2]s:11
+msgid   "goo abc"
+msgstr  ""
+
+#: %[2]s:7
+msgid   "goo foo"
+msgstr  ""
+
+#: %[2]s:15
+msgid   "one"
+msgid_plural   "many"
+msgstr[0]  ""
+msgstr[1]  ""
+
+#. TRANSLATORS: plural
+#: %[2]s:14
+msgid   "singular"
+msgid_plural   "plural"
+msgstr[0]  ""
+msgstr[1]  ""
+
+#: %[2]s:18
+#, c-format
+msgid   "yy %%s"
+msgstr  ""
+
+#: %[2]s:17
+#, c-format
+msgid   "zz %%s"
+msgstr  ""
+
+`, header, fname)
+	c.Assert(string(got), Equals, expected)
+}
+
 func (s *xgettextTestSuite) TestProcessFilesConcat(c *C) {
 	fname := makeGoSourceFile(c, []byte(`package main
 

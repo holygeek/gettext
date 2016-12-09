@@ -124,24 +124,23 @@ func inspectNodeForTranslations(fset *token.FileSet, f *ast.File, n ast.Node) bo
 		//if sel, ok := x.Fun.(*ast.Ident); ok {
 
 		//}
+		var funcCall string
 		switch sel := x.Fun.(type) {
 		case *ast.Ident:
-			if sel.Name == gettextFuncNamePlural {
-				i18nStr = x.Args[0].(*ast.BasicLit).Value
-				i18nStrPlural = x.Args[1].(*ast.BasicLit).Value
-			}
-			if sel.Name == gettextFuncName {
-				i18nStr = constructValue(x.Args[0])
-			}
+			funcCall = sel.Name
 		case *ast.SelectorExpr:
-			if sel.Sel.Name == gettextFuncNamePlural && sel.X.(*ast.Ident).Name == gettextSelectorPlural {
-				i18nStr = x.Args[0].(*ast.BasicLit).Value
-				i18nStrPlural = x.Args[1].(*ast.BasicLit).Value
-			}
+			funcCall = sel.X.(*ast.Ident).Name + "." + sel.Sel.Name
+		}
 
-			if sel.Sel.Name == gettextFuncName && sel.X.(*ast.Ident).Name == gettextSelector {
-				i18nStr = constructValue(x.Args[0])
-			}
+		if funcCall == "" {
+			break
+		}
+
+		if singularI18n[funcCall] {
+			i18nStr = constructValue(x.Args[0])
+		} else if pluralI18n[funcCall] {
+			i18nStr = x.Args[0].(*ast.BasicLit).Value
+			i18nStrPlural = x.Args[1].(*ast.BasicLit).Value
 		}
 
 		if i18nStr == "" {
@@ -309,12 +308,14 @@ var opts struct {
 
 	PackageName string `long:"package-name" description:"set package name in output"`
 
-	Keyword       string `short:"k" long:"keyword" default:"gettext.Gettext" description:"look for WORD as the keyword for singular strings"`
-	KeywordPlural string `long:"keyword-plural" default:"gettext.NGettext" description:"look for WORD as the keyword for plural strings"`
+	Keyword       string `short:"k" long:"keyword" default:"gettext.Gettext" description:"look for WORD as the keyword for singular strings (use comma to specify multiple WORDs)."`
+	KeywordPlural string `long:"keyword-plural" default:"gettext.NGettext" description:"look for WORD as the keyword for plural strings (use comma to specify multiple WORDs)"`
 }
 
-var gettextSelector, gettextFuncName string
-var gettextSelectorPlural, gettextFuncNamePlural string
+//var gettextSelector, gettextFuncNames []string
+//var gettextSelectorPlural, gettextFuncNamesPlural []string
+var singularI18n = map[string]bool{}
+var pluralI18n = map[string]bool{}
 
 func main() {
 	// parse args
@@ -323,22 +324,12 @@ func main() {
 		log.Fatalf("ParseArgs failed %s", err)
 	}
 
-	l := strings.Split(opts.Keyword, ".")
-
-	if len(l) > 1 {
-		gettextSelector = l[0]
-		gettextFuncName = l[1]
-	} else {
-		gettextFuncName = l[0]
+	for _, keyword := range strings.Split(opts.Keyword, ",") {
+		singularI18n[keyword] = true
 	}
 
-	l = strings.Split(opts.KeywordPlural, ".")
-
-	if len(l) > 1 {
-		gettextSelectorPlural = l[0]
-		gettextFuncNamePlural = l[1]
-	} else {
-		gettextFuncNamePlural = l[0]
+	for _, keywordPlural := range strings.Split(opts.KeywordPlural, ",") {
+		pluralI18n[keywordPlural] = true
 	}
 
 	if err := processFiles(args[1:]); err != nil {
