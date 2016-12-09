@@ -118,27 +118,6 @@ func constructValue(val interface{}) string {
 }
 
 func inspectNodeForTranslations(fset *token.FileSet, f *ast.File, n ast.Node) bool {
-	// FIXME: this assume we always have a "gettext.Gettext" style keyword
-	var gettextSelector, gettextFuncName string
-	l := strings.Split(opts.Keyword, ".")
-
-	if len(l) > 1 {
-		gettextSelector = l[0]
-		gettextFuncName = l[1]
-	} else {
-		gettextFuncName = l[0]
-	}
-
-	var gettextSelectorPlural, gettextFuncNamePlural string
-	l = strings.Split(opts.KeywordPlural, ".")
-
-	if len(l) > 1 {
-		gettextSelectorPlural = l[0]
-		gettextFuncNamePlural = l[1]
-	} else {
-		gettextFuncNamePlural = l[0]
-	}
-
 	switch x := n.(type) {
 	case *ast.CallExpr:
 		var i18nStr, i18nStrPlural string
@@ -334,11 +313,32 @@ var opts struct {
 	KeywordPlural string `long:"keyword-plural" default:"gettext.NGettext" description:"look for WORD as the keyword for plural strings"`
 }
 
+var gettextSelector, gettextFuncName string
+var gettextSelectorPlural, gettextFuncNamePlural string
+
 func main() {
 	// parse args
 	args, err := flags.ParseArgs(&opts, os.Args)
 	if err != nil {
 		log.Fatalf("ParseArgs failed %s", err)
+	}
+
+	l := strings.Split(opts.Keyword, ".")
+
+	if len(l) > 1 {
+		gettextSelector = l[0]
+		gettextFuncName = l[1]
+	} else {
+		gettextFuncName = l[0]
+	}
+
+	l = strings.Split(opts.KeywordPlural, ".")
+
+	if len(l) > 1 {
+		gettextSelectorPlural = l[0]
+		gettextFuncNamePlural = l[1]
+	} else {
+		gettextFuncNamePlural = l[0]
 	}
 
 	if err := processFiles(args[1:]); err != nil {
